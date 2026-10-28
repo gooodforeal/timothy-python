@@ -10,7 +10,7 @@
 
 ---
 
-## До
+## Before
 
 ```python
 import requests, json, csv, os
@@ -69,7 +69,7 @@ main("orders.csv", "top.json")
 
 ---
 
-## После
+## After
 
 Объём задачи небольшой — это **один скрипт**, а не пакет из десяти модулей
 (KISS). Если бы появились другие отчёты по тем же заказам, загрузку курса и
@@ -77,18 +77,18 @@ main("orders.csv", "top.json")
 
 ```python
 #!/usr/bin/env python3
-"""Отчёт «топ клиентов по выручке» в рублях по оплаченным заказам.
+""""Top customers by revenue" report in rubles for paid orders.
 
-Назначение:
-    Читает выгрузку заказов из CSV (суммы в долларах), пересчитывает их в рубли
-    по текущему курсу ЦБ РФ и сохраняет в JSON топ клиентов по выручке.
-    Используется отделом продаж для еженедельного обзора.
+Purpose:
+    Reads an orders export from CSV (amounts in dollars), converts them to rubles
+    at the current Central Bank of Russia rate and saves the top customers by
+    revenue to JSON. Used by the sales department for the weekly review.
 
-Формат входного CSV:
+Input CSV format:
     order_id,customer_email,amount_usd,status
-    Учитываются только строки со статусом "paid".
+    Only rows with status "paid" are counted.
 
-Запуск:
+Usage:
     python top_customers_report.py orders.csv --output top_customers.json --limit 10
 """
 
@@ -113,32 +113,32 @@ KOPECK = Decimal("0.01")
 
 
 def fetch_usd_rate_rub() -> Decimal:
-    """Загружает текущий курс доллара к рублю из API ЦБ РФ.
+    """Loads the current dollar-to-ruble rate from the Central Bank of Russia API.
 
     Returns:
-        Стоимость одного доллара в рублях.
+        Price of one dollar in rubles.
 
     Raises:
-        httpx.HTTPError: API недоступен или вернул ошибочный статус.
+        httpx.HTTPError: The API is unavailable or returned an error status.
     """
     response = httpx.get(CBR_DAILY_RATES_URL, timeout=REQUEST_TIMEOUT_SECONDS)
     response.raise_for_status()
 
-    # Курс приходит числом JSON; через str в Decimal — чтобы не тащить погрешность float
+    # The rate arrives as a JSON number; go through str into Decimal to avoid float error
     return Decimal(str(response.json()["Valute"]["USD"]["Value"]))
 
 
 def read_paid_orders(orders_path: Path) -> Iterator[tuple[str, Decimal]]:
-    """Построчно читает оплаченные заказы из CSV-выгрузки.
+    """Reads paid orders from the CSV export row by row.
 
     Args:
-        orders_path: Путь к CSV с колонками customer_email, amount_usd, status.
+        orders_path: Path to a CSV with columns customer_email, amount_usd, status.
 
     Yields:
-        Пары «email клиента, сумма заказа в долларах» для оплаченных заказов.
+        (customer email, order amount in dollars) pairs for paid orders.
     """
     with orders_path.open(encoding="utf-8", newline="") as orders_file:
-        # DictReader — обращение к колонкам по именам, а не по хрупким индексам
+        # DictReader: access columns by name, not by fragile indexes
         for row in csv.DictReader(orders_file):
             if row["status"] == PAID_STATUS:
                 yield row["customer_email"], Decimal(row["amount_usd"])
@@ -149,23 +149,23 @@ def calculate_top_customers(
     usd_rate_rub: Decimal,
     limit: int,
 ) -> list[dict[str, str]]:
-    """Считает выручку по клиентам в рублях и возвращает лидеров.
+    """Computes revenue per customer in rubles and returns the leaders.
 
     Args:
-        paid_orders: Пары «email клиента, сумма в долларах».
-        usd_rate_rub: Курс доллара к рублю.
-        limit: Сколько клиентов вернуть.
+        paid_orders: (customer email, amount in dollars) pairs.
+        usd_rate_rub: Dollar-to-ruble rate.
+        limit: How many customers to return.
 
     Returns:
-        Клиенты по убыванию выручки: ``{"customer_email": ..., "revenue_rub": ...}``.
-        Сумма — строкой, чтобы JSON не терял копейки.
+        Customers by descending revenue: ``{"customer_email": ..., "revenue_rub": ...}``.
+        The amount is a string so JSON does not lose kopecks.
     """
-    # Counter суммирует по ключу за O(1) и сразу умеет отдавать топ-N
+    # Counter sums by key in O(1) and can return the top N directly
     revenue_usd_by_customer: Counter[str] = Counter()
     for customer_email, amount_usd in paid_orders:
         revenue_usd_by_customer[customer_email] += amount_usd
 
-    # Курс применяем к итоговым суммам, а не к каждому заказу — меньше операций
+    # Apply the rate to the totals, not to every order: fewer operations
     return [
         {
             "customer_email": customer_email,
@@ -176,30 +176,30 @@ def calculate_top_customers(
 
 
 def parse_arguments() -> argparse.Namespace:
-    """Разбирает аргументы командной строки."""
-    parser = argparse.ArgumentParser(description="Топ клиентов по выручке в рублях.")
-    parser.add_argument("orders_path", type=Path, help="CSV-выгрузка заказов")
+    """Parses command-line arguments."""
+    parser = argparse.ArgumentParser(description="Top customers by revenue in rubles.")
+    parser.add_argument("orders_path", type=Path, help="CSV orders export")
     parser.add_argument("--output", type=Path, default=Path("top_customers.json"))
     parser.add_argument("--limit", type=int, default=DEFAULT_TOP_LIMIT)
     return parser.parse_args()
 
 
 def main() -> None:
-    """Строит отчёт по аргументам командной строки и сохраняет его в JSON."""
+    """Builds the report from command-line arguments and saves it to JSON."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     arguments = parse_arguments()
 
-    # Курс берём один раз на весь отчёт, чтобы все суммы были посчитаны одинаково
+    # Fetch the rate once per report so all amounts are computed consistently
     usd_rate_rub = fetch_usd_rate_rub()
     top_customers = calculate_top_customers(
         read_paid_orders(arguments.orders_path), usd_rate_rub, arguments.limit
     )
 
-    # ensure_ascii=False — чтобы кириллица в отчёте читалась без \u-эскейпов
+    # ensure_ascii=False keeps non-ASCII text in the report readable without \u escapes
     arguments.output.write_text(
         json.dumps(top_customers, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    logger.info("Отчёт сохранён: %s (%d клиентов)", arguments.output, len(top_customers))
+    logger.info("Report saved: %s (%d customers)", arguments.output, len(top_customers))
 
 
 if __name__ == "__main__":
@@ -233,7 +233,7 @@ if __name__ == "__main__":
 ### Пустые имена → говорящие имена
 
 ```python
-# До
+# Before
 def proc(d, f=False):
     r = []
     for i in d:
@@ -241,16 +241,16 @@ def proc(d, f=False):
             r.append(i)
     return r
 
-# После
+# After
 def filter_active_orders(orders: list[Order], *, include_inactive: bool = False) -> list[Order]:
-    """Возвращает активные заказы (или все, если include_inactive=True)."""
+    """Returns active orders (or all of them if include_inactive=True)."""
     return [order for order in orders if include_inactive or order.is_active]
 ```
 
 ### Вложенные `if` и ручной аккумулятор → ранний выход и `sum()`
 
 ```python
-# До
+# Before
 def get_discount(user):
     if user is not None:
         if user.is_active:
@@ -261,18 +261,18 @@ def get_discount(user):
                 return 0.1
     return 0
 
-# После
+# After
 VIP_THRESHOLD_RUB = 100_000
 VIP_DISCOUNT_RATE = 0.1
 
 
 def calculate_discount_rate(user: User | None) -> float:
-    """Возвращает долю скидки пользователя: 10% для VIP, иначе 0."""
-    # Неактивные и анонимные пользователи скидку не получают
+    """Returns the user's discount rate: 10% for VIP, otherwise 0."""
+    # Inactive and anonymous users get no discount
     if user is None or not user.is_active:
         return 0.0
 
-    # VIP — тот, кто суммарно потратил больше порога
+    # VIP is a user whose total spend exceeds the threshold
     total_spent_rub = sum(order.amount_rub for order in user.orders)
     return VIP_DISCOUNT_RATE if total_spent_rub > VIP_THRESHOLD_RUB else 0.0
 ```
@@ -280,7 +280,7 @@ def calculate_discount_rate(user: User | None) -> float:
 ### Класс без состояния → функция
 
 ```python
-# До
+# Before
 class PriceFormatter:
     def __init__(self):
         pass
@@ -288,16 +288,16 @@ class PriceFormatter:
     def format(self, price):
         return f"{price:,.2f} ₽".replace(",", " ")
 
-# После
+# After
 def format_price_rub(price_rub: Decimal) -> str:
-    """Форматирует сумму в рублях с разделителем тысяч: «12 345.00 ₽»."""
+    """Formats a ruble amount with a thousands separator: "12 345.00 ₽"."""
     return f"{price_rub:,.2f} ₽".replace(",", " ")
 ```
 
 ### Цепочка `if/elif` → словарь-диспетчер
 
 ```python
-# До
+# Before
 def export(report, fmt):
     if fmt == "csv":
         return export_csv(report)
@@ -308,7 +308,7 @@ def export(report, fmt):
     else:
         raise ValueError("bad format")
 
-# После
+# After
 EXPORTER_BY_FORMAT: dict[str, Callable[[Report], bytes]] = {
     "csv": export_csv,
     "json": export_json,
@@ -317,15 +317,15 @@ EXPORTER_BY_FORMAT: dict[str, Callable[[Report], bytes]] = {
 
 
 def export_report(report: Report, export_format: str) -> bytes:
-    """Сериализует отчёт в выбранный формат.
+    """Serializes the report into the chosen format.
 
     Raises:
-        ValueError: Формат не поддерживается.
+        ValueError: The format is not supported.
     """
     exporter = EXPORTER_BY_FORMAT.get(export_format)
     if exporter is None:
         supported = ", ".join(EXPORTER_BY_FORMAT)
-        raise ValueError(f"Формат {export_format!r} не поддерживается; доступны: {supported}")
+        raise ValueError(f"Format {export_format!r} is not supported; available: {supported}")
     return exporter(report)
 ```
 
@@ -334,16 +334,16 @@ def export_report(report: Report, export_format: str) -> bytes:
 ### Зависимость создаётся внутри → передаётся снаружи
 
 ```python
-# До: невозможно протестировать без реальной БД и SMTP
+# Before: impossible to test without a real DB and SMTP
 def register_user(email: str) -> None:
     db = Database(os.environ["DATABASE_URL"])
     mailer = SmtpMailer()
     db.insert_user(email)
     mailer.send_welcome(email)
 
-# После: зависимости передаются явно (DIP), в тестах — подменяются
+# After: dependencies are passed explicitly (DIP) and can be replaced in tests
 def register_user(email: str, *, user_repository: UserRepository, mailer: Mailer) -> None:
-    """Создаёт пользователя и отправляет ему приветственное письмо."""
+    """Creates a user and sends them a welcome email."""
     user_repository.add(email)
     mailer.send_welcome(email)
 ```

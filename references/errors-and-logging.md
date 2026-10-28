@@ -22,31 +22,31 @@
 месту возникновения. Хватает 3–7 классов на приложение.
 
 ```python
-"""Исключения приложения shop_api.
+"""Application exceptions of shop_api.
 
-Каждое исключение соответствует одной реакции на верхнем уровне: NotFoundError →
-HTTP 404, ValidationError → 422, ExternalServiceError → 502 и повтор позже.
+Each exception maps to one reaction at the top level: NotFoundError ->
+HTTP 404, ValidationError -> 422, ExternalServiceError -> 502 and retry later.
 """
 
 
 class AppError(Exception):
-    """Базовое исключение приложения; ловите его, чтобы обработать любую нашу ошибку."""
+    """Base application exception; catch it to handle any of our errors."""
 
 
 class NotFoundError(AppError):
-    """Запрошенный объект не существует или недоступен пользователю."""
+    """The requested object does not exist or is not accessible to the user."""
 
 
 class ValidationError(AppError):
-    """Данные нарушают бизнес-правило (формат уже проверен схемой на входе)."""
+    """The data violates a business rule (the format is already validated by the input schema)."""
 
 
 class ConflictError(AppError):
-    """Операция противоречит текущему состоянию объекта, например повторная оплата."""
+    """The operation conflicts with the object's current state, e.g. a repeated payment."""
 
 
 class ExternalServiceError(AppError):
-    """Внешний сервис недоступен или ответил ошибкой; операцию можно повторить позже."""
+    """An external service is unavailable or returned an error; the operation can be retried later."""
 ```
 
 Отдельный класс оправдан, если вызывающему коду нужно ловить именно его или
@@ -56,9 +56,9 @@ class ExternalServiceError(AppError):
 ## 2. Где ловить исключения
 
 ```
-api/cli/bot (граница)   ← ловим AppError: лог + понятный ответ пользователю
-   services             ← ловим, только если можем обработать (fallback, компенсация)
-   clients/repositories ← переводим чужие исключения (httpx, драйвер БД) в наши
+api/cli/bot (boundary)   ← catch AppError: log + a clear response to the user
+   services             ← catch only if we can handle it (fallback, compensation)
+   clients/repositories ← translate foreign exceptions (httpx, DB driver) into ours
 ```
 
 - **Нижний слой** переводит исключения библиотек в исключения приложения —
@@ -68,38 +68,38 @@ api/cli/bot (граница)   ← ловим AppError: лог + понятны�
   CLI, middleware бота.
 
 ```python
-# clients/payment_gateway.py — перевод чужой ошибки в нашу
+# clients/payment_gateway.py — translating a foreign error into ours
 def charge(self, amount_rub: Decimal, card_token: str) -> PaymentResult:
-    """Списывает сумму с карты через API платёжной системы.
+    """Charges the card through the payment provider API.
 
     Raises:
-        PaymentDeclinedError: Платёжная система отклонила платёж.
-        ExternalServiceError: Платёжная система недоступна.
+        PaymentDeclinedError: The payment provider declined the payment.
+        ExternalServiceError: The payment provider is unavailable.
     """
     try:
         response = self._client.post("/charges", json={"amount": str(amount_rub), "token": card_token})
         response.raise_for_status()
     except httpx.HTTPStatusError as error:
-        # 402 — осмысленный отказ банка, его показываем пользователю; остальное — сбой сервиса
+        # 402 is a meaningful bank decline shown to the user; anything else is a service failure
         if error.response.status_code == HTTPStatus.PAYMENT_REQUIRED:
             raise PaymentDeclinedError(error.response.json()["decline_code"]) from error
-        raise ExternalServiceError(f"Платёжный шлюз ответил {error.response.status_code}") from error
+        raise ExternalServiceError(f"Payment gateway responded with {error.response.status_code}") from error
     except httpx.TransportError as error:
-        raise ExternalServiceError("Платёжный шлюз недоступен") from error
+        raise ExternalServiceError("Payment gateway is unavailable") from error
 
     return PaymentResult.model_validate(response.json())
 ```
 
 ```python
-# main.py CLI — граница: одно место, где ошибки превращаются в код выхода
+# main.py CLI — boundary: the one place where errors become an exit code
 def main() -> None:
-    """Запускает выгрузку и переводит ошибки в коды выхода."""
+    """Runs the export and translates errors into exit codes."""
     configure_logging()
     try:
         run_export(parse_arguments())
     except AppError as error:
-        # Ожидаемая ошибка: короткое сообщение без трейсбека
-        logger.error("Выгрузка не выполнена: %s", error)
+        # Expected error: a short message without a traceback
+        logger.error("Export failed: %s", error)
         sys.exit(1)
 ```
 
@@ -110,13 +110,13 @@ def main() -> None:
 ## 3. Как правильно ловить и перебрасывать
 
 ```python
-# try — только вокруг строки, которая может бросить ожидаемое исключение
+# try only around the line that may raise the expected exception
 try:
     raw_config = config_path.read_text(encoding="utf-8")
 except FileNotFoundError as error:
-    raise ConfigError(f"Не найден файл конфигурации {config_path}") from error
+    raise ConfigError(f"Config file not found: {config_path}") from error
 
-# Дальнейшая обработка — вне try, чтобы случайно не поймать чужую ошибку
+# Further processing is outside try so a foreign error is not caught by accident
 config = parse_config(raw_config)
 ```
 
@@ -129,7 +129,7 @@ config = parse_config(raw_config)
 - Игнорирование ошибки — только явно и с причиной:
 
 ```python
-# Файл кэша мог быть удалён параллельным процессом — это нормально
+# The cache file may have been removed by a parallel process - that is fine
 with contextlib.suppress(FileNotFoundError):
     cache_path.unlink()
 ```
@@ -148,10 +148,10 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
     retry=retry_if_exception_type(ExternalServiceError),
     stop=stop_after_attempt(MAX_RETRY_ATTEMPTS),
     wait=wait_exponential_jitter(initial=0.5, max=10),
-    reraise=True,  # после последней попытки — исходное исключение, а не RetryError
+    reraise=True,  # after the last attempt raise the original exception, not RetryError
 )
 def fetch_daily_rates(on_date: date) -> dict[str, Decimal]:
-    """Загружает курсы ЦБ; временные сбои повторяются до MAX_RETRY_ATTEMPTS раз."""
+    """Loads central bank rates; transient failures are retried up to MAX_RETRY_ATTEMPTS times."""
 ```
 
 Без библиотеки — простой цикл с `time.sleep`, но не самодельный «фреймворк ретраев».
@@ -181,12 +181,12 @@ logger = logging.getLogger(__name__)
 
 ```python
 def configure_logging(level: str = "INFO") -> None:
-    """Настраивает формат и уровень логов для всего приложения."""
+    """Configures the log format and level for the whole application."""
     logging.basicConfig(
         level=level,
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
     )
-    # Сторонние библиотеки шумят на INFO — оставляем им только предупреждения
+    # Third-party libraries are noisy at INFO, so leave them warnings only
     logging.getLogger("httpx").setLevel(logging.WARNING)
 ```
 
@@ -209,12 +209,12 @@ def configure_logging(level: str = "INFO") -> None:
 ## 8. Что и как писать в лог
 
 ```python
-# Хорошо: ленивое форматирование, контекст, без секретов
-logger.info("Заказ %s оплачен: %s ₽, попытка %d", order.id, order.total_rub, attempt)
+# Good: lazy formatting, context, no secrets
+logger.info("Order %s paid: %s RUB, attempt %d", order.id, order.total_rub, attempt)
 
-# Плохо: f-строка форматируется, даже если уровень выключен; нет контекста
+# Bad: the f-string is formatted even if the level is disabled; no context
 logger.debug(f"data: {data}")
-logger.error("Ошибка")
+logger.error("Error")
 ```
 
 - В сообщении — идентификаторы (`order_id`, `user_id`, `request_id`), чтобы по

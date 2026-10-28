@@ -33,11 +33,11 @@
 | Много однотипных объектов | обычный класс | `@dataclass(slots=True)` — меньше памяти, быстрее доступ |
 
 ```python
-# До: O(n) на каждую проверку → O(n * m) в цикле
+# Before: O(n) per check -> O(n * m) in the loop
 banned_emails = load_banned_emails()  # list
 allowed_users = [user for user in users if user.email not in banned_emails]
 
-# После: O(1) на проверку → O(n + m)
+# After: O(1) per check -> O(n + m)
 banned_emails = set(load_banned_emails())
 allowed_users = [user for user in users if user.email not in banned_emails]
 ```
@@ -47,14 +47,14 @@ allowed_users = [user for user in users if user.email not in banned_emails]
 Главный источник тормозов — вложенный поиск. Строим индекс один раз.
 
 ```python
-# До: O(orders * customers)
+# Before: O(orders * customers)
 for order in orders:
     for customer in customers:
         if customer.id == order.customer_id:
             order.customer_name = customer.name
 
-# После: O(orders + customers)
-# Индекс клиентов по id — строится один раз, дальше поиск за O(1)
+# After: O(orders + customers)
+# Customer index by id: built once, then lookups are O(1)
 customer_by_id = {customer.id: customer for customer in customers}
 for order in orders:
     order.customer_name = customer_by_id[order.customer_id].name
@@ -66,11 +66,11 @@ for order in orders:
 ## 3. Память и потоковая обработка
 
 ```python
-# До: весь файл в памяти
+# Before: the whole file in memory
 lines = path.read_text().splitlines()
 error_count = len([line for line in lines if "ERROR" in line])
 
-# После: построчно, память O(1)
+# After: line by line, O(1) memory
 with path.open(encoding="utf-8") as log_file:
     error_count = sum(1 for line in log_file if "ERROR" in line)
 ```
@@ -85,26 +85,26 @@ with path.open(encoding="utf-8") as log_file:
 ## 4. Строки и regex
 
 ```python
-# До: O(n²) — каждая конкатенация создаёт новую строку
+# Before: O(n²) — each concatenation creates a new string
 report = ""
 for row in rows:
     report += f"{row.name};{row.total}\n"
 
-# После: O(n)
+# After: O(n)
 report = "".join(f"{row.name};{row.total}\n" for row in rows)
 ```
 
 ```python
-# До: шаблон разбирается при каждом вызове (кэш re ограничен и не бесплатен)
+# Before: the pattern is parsed on every call (the re cache is limited and not free)
 def is_valid_sku(sku: str) -> bool:
     return re.fullmatch(r"[A-Z]{3}-\d{6}", sku) is not None
 
-# После: компиляция один раз при импорте модуля
-SKU_PATTERN = re.compile(r"[A-Z]{3}-\d{6}")  # Три заглавные буквы, дефис, шесть цифр
+# After: compile once at module import
+SKU_PATTERN = re.compile(r"[A-Z]{3}-\d{6}")  # Three capital letters, a hyphen, six digits
 
 
 def is_valid_sku(sku: str) -> bool:
-    """Проверяет, что артикул соответствует формату ABC-123456."""
+    """Checks that the SKU matches the ABC-123456 format."""
     return SKU_PATTERN.fullmatch(sku) is not None
 ```
 
@@ -114,12 +114,12 @@ def is_valid_sku(sku: str) -> bool:
 ## 5. Кэширование и инварианты
 
 ```python
-# До: одно и то же вычисляется на каждой итерации
+# Before: the same value is computed on every iteration
 for product in products:
-    tax_rate = get_tax_rate(settings.region)  # не зависит от product
+    tax_rate = get_tax_rate(settings.region)  # does not depend on product
     product.price_with_tax = product.price * (1 + tax_rate)
 
-# После: инвариант вынесен из цикла
+# After: the invariant is moved out of the loop
 tax_multiplier = 1 + get_tax_rate(settings.region)
 for product in products:
     product.price_with_tax = product.price * tax_multiplier
@@ -131,7 +131,7 @@ from functools import cache
 
 @cache
 def get_tax_rate(region_code: str) -> Decimal:
-    """Возвращает ставку налога региона; результат кэшируется на время жизни процесса."""
+    """Returns the region's tax rate; the result is cached for the process lifetime."""
 ```
 
 - `functools.cache` / `lru_cache(maxsize=...)` — только для **чистых** функций
@@ -143,12 +143,12 @@ def get_tax_rate(region_code: str) -> Decimal:
 **N+1 запросов к БД — самая частая проблема.**
 
 ```python
-# До: 1 запрос за заказами + N запросов за товарами
+# Before: 1 query for orders + N queries for products
 orders = session.scalars(select(Order)).all()
 for order in orders:
-    print(order.items)  # ленивая загрузка — отдельный запрос на каждый заказ
+    print(order.items)  # lazy loading: a separate query per order
 
-# После: 2 запроса на всё
+# After: 2 queries in total
 orders = session.scalars(select(Order).options(selectinload(Order.items))).all()
 ```
 
@@ -159,11 +159,11 @@ orders = session.scalars(select(Order).options(selectinload(Order.items))).all()
   каждый запрос. Всегда таймаут. Ретраи — с экспоненциальной задержкой и лимитом.
 
 ```python
-# До: новое соединение на каждый запрос, без таймаута
+# Before: a new connection per request, no timeout
 for user_id in user_ids:
     response = requests.get(f"{API_URL}/users/{user_id}")
 
-# После: переиспользуем соединения, ограничиваем ожидание
+# After: reuse connections, limit the wait
 with httpx.Client(base_url=API_URL, timeout=REQUEST_TIMEOUT_SECONDS) as client:
     for user_id in user_ids:
         response = client.get(f"/users/{user_id}")
@@ -179,22 +179,22 @@ with httpx.Client(base_url=API_URL, timeout=REQUEST_TIMEOUT_SECONDS) as client:
 | Численные вычисления | векторизация `numpy`/`polars` — обычно быстрее процессов |
 
 ```python
-MAX_CONCURRENT_REQUESTS = 10  # Лимит сервиса профилей — 10 параллельных запросов
+MAX_CONCURRENT_REQUESTS = 10  # The profile service limit is 10 concurrent requests
 
 
 async def fetch_user_profiles(user_ids: list[int], client: httpx.AsyncClient) -> list[UserProfile]:
-    """Параллельно загружает профили, не превышая лимит параллельных запросов."""
-    # Семафор ограничивает число одновременных запросов
+    """Loads profiles concurrently without exceeding the concurrency limit."""
+    # The semaphore limits the number of simultaneous requests
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
     async def fetch_one(user_id: int) -> UserProfile:
-        """Загружает один профиль, дожидаясь свободного слота."""
+        """Loads a single profile, waiting for a free slot."""
         async with semaphore:
             response = await client.get(f"/profiles/{user_id}")
             response.raise_for_status()
             return UserProfile.model_validate(response.json())
 
-    # TaskGroup отменит остальные задачи, если одна упадёт
+    # TaskGroup cancels the remaining tasks if one fails
     async with asyncio.TaskGroup() as task_group:
         tasks = [task_group.create_task(fetch_one(user_id)) for user_id in user_ids]
 
@@ -207,11 +207,11 @@ async def fetch_user_profiles(user_ids: list[int], client: httpx.AsyncClient) ->
 ## 8. pandas / numpy
 
 ```python
-# До: построчный Python-цикл — медленно в сотни раз
+# Before: a row-by-row Python loop: hundreds of times slower
 for index, row in df.iterrows():
     df.at[index, "total"] = row["price"] * row["quantity"]
 
-# После: векторная операция
+# After: vectorized operation
 df["total"] = df["price"] * df["quantity"]
 ```
 
@@ -223,9 +223,9 @@ df["total"] = df["price"] * df["quantity"]
 ## 9. Как измерять
 
 ```bash
-python -m cProfile -s cumulative script.py | head -30   # где тратится время
-python -m timeit -s "from module import func" "func()"  # микробенчмарк
-py-spy top --pid <PID>                                  # профиль живого процесса
+python -m cProfile -s cumulative script.py | head -30   # where the time goes
+python -m timeit -s "from module import func" "func()"  # micro-benchmark
+py-spy top --pid <PID>                                  # profile of a live process
 ```
 
 В коде — `time.perf_counter()` для замеров участков. Память — `tracemalloc`.

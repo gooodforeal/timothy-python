@@ -1,7 +1,8 @@
 # Документация кода: шаблоны и примеры
 
 Справочник к разделу 4 `SKILL.md`. Стиль докстрингов — PEP 257 + Google style.
-Язык — русский (если в проекте не принят другой).
+Весь текст в коде (шапки, докстринги, комментарии, логи) — на английском;
+проза этого справочника на русском. Если в проекте принят другой язык — следуй ему.
 
 ## Содержание
 
@@ -22,45 +23,45 @@ shebang и `# -*- coding -*-`, если они нужны). Первая стр�
 ### 1.1. Обычный модуль
 
 ```python
-"""Расчёт итоговой стоимости заказа с учётом скидок и доставки.
+"""Order total calculation with discounts and delivery.
 
-Назначение:
-    Единственное место, где считается сумма к оплате. Используется при
-    оформлении заказа (API), в пересчёте корзины и в ночной сверке с
-    платёжной системой — поэтому формула не должна дублироваться где-то ещё.
+Purpose:
+    The single place where the amount to pay is computed. Used at checkout
+    (API), in cart recalculation and in the nightly reconciliation with the
+    payment provider, so the formula must not be duplicated anywhere else.
 
-Основные компоненты:
-    PriceBreakdown: детализация суммы (товары, скидка, доставка, итог).
-    calculate_order_total: расчёт итоговой суммы заказа.
+Components:
+    PriceBreakdown: amount details (items, discount, delivery, total).
+    calculate_order_total: computes the order total.
 
-Правила расчёта:
-    1. Скидка применяется только к товарам, не к доставке.
-    2. Доставка бесплатна при сумме товаров от FREE_DELIVERY_THRESHOLD_RUB.
-    3. Все суммы округляются до копеек по банковскому правилу.
+Calculation rules:
+    1. The discount applies to items only, not to delivery.
+    2. Delivery is free when the items total reaches FREE_DELIVERY_THRESHOLD_RUB.
+    3. All amounts are rounded to kopecks using banker's rounding.
 
-Пример:
+Example:
     >>> breakdown = calculate_order_total(order, promo_code="SPRING10")
     >>> breakdown.total_rub
     Decimal('4590.00')
 """
 ```
 
-Секции подбирай по смыслу — обязательны только резюме и «Назначение».
-Полезные дополнительные секции: «Правила», «Зависимости», «Ограничения»,
-«Переменные окружения», «Формат данных».
+Секции подбирай по смыслу — обязательны только резюме и `Purpose:`.
+Полезные дополнительные секции: `Rules:`, `Dependencies:`, `Limitations:`,
+`Environment variables:`, `Data format:`.
 
 ### 1.2. Пакет (`__init__.py`)
 
 ```python
-"""Биллинг: тарифы, расчёт счетов и приём платежей.
+"""Billing: tariffs, invoicing and payment processing.
 
-Пакет объединяет всё, что связано с деньгами пользователя. Внешний код
-работает только с публичным API ниже — внутренние модули могут меняться.
+The package groups everything related to the user's money. External code
+should use only the public API below; internal modules may change.
 
-Публичный API:
-    create_invoice: выставление счёта за период.
-    process_payment: проведение платежа по счёту.
-    BillingError: базовое исключение пакета.
+Public API:
+    create_invoice: issues an invoice for a period.
+    process_payment: processes a payment for an invoice.
+    BillingError: base exception of the package.
 """
 
 from app.billing.exceptions import BillingError
@@ -74,31 +75,31 @@ __all__ = ["BillingError", "create_invoice", "process_payment"]
 
 ```python
 #!/usr/bin/env python3
-"""Выгрузка заказов за период в CSV для бухгалтерии.
+"""Exports orders for a period to CSV for the accounting department.
 
-Назначение:
-    Ежемесячно бухгалтерия получает CSV со всеми оплаченными заказами.
-    Скрипт запускается по крону 1-го числа в 03:00 и вручную при пересверке.
+Purpose:
+    Accounting receives a CSV with all paid orders every month. The script
+    runs from cron on the 1st at 03:00 and manually during reconciliation.
 
-Запуск:
+Usage:
     python export_orders.py --from 2026-01-01 --to 2026-01-31 --output orders.csv
 
-Переменные окружения:
-    DATABASE_URL: строка подключения к PostgreSQL (обязательно).
-    EXPORT_BATCH_SIZE: размер пачки при чтении из БД (по умолчанию 5000).
+Environment variables:
+    DATABASE_URL: PostgreSQL connection string (required).
+    EXPORT_BATCH_SIZE: batch size when reading from the DB (default 5000).
 
-Коды выхода:
-    0 — успешно, 1 — ошибка параметров, 2 — ошибка БД.
+Exit codes:
+    0 - success, 1 - invalid arguments, 2 - database error.
 """
 ```
 
 ### 1.4. Файл тестов
 
 ```python
-"""Тесты расчёта итоговой стоимости заказа (app.billing.pricing).
+"""Tests for order total calculation (app.billing.pricing).
 
-Покрывают: применение промокодов, порог бесплатной доставки, округление
-копеек и отказ при некорректных суммах.
+Cover: promo code application, free delivery threshold, kopeck rounding
+and rejection of invalid amounts.
 """
 ```
 
@@ -108,7 +109,7 @@ __all__ = ["BillingError", "create_invoice", "process_payment"]
 
 Общие правила:
 - Первая строка — что делает (изъявительное наклонение, с точкой):
-  «Возвращает…», «Создаёт…», «Проверяет…». Не «Функция для…», не «Этот метод…».
+  `"""Returns…"""`, `"""Creates…"""`, `"""Checks…"""`. Не «Function for…», не «This method…».
 - Типы — в аннотациях, в докстринге не повторяем.
 - Секции: `Args:`, `Returns:`, `Yields:`, `Raises:`, `Attributes:`, `Example:`,
   `Note:`. Пишем секцию, только если в ней есть содержание.
@@ -120,19 +121,19 @@ __all__ = ["BillingError", "create_invoice", "process_payment"]
 
 ```python
 def split_into_batches(items: Sequence[T], batch_size: int) -> list[list[T]]:
-    """Разбивает последовательность на пачки фиксированного размера.
+    """Splits a sequence into batches of a fixed size.
 
-    Последняя пачка может быть меньше batch_size. Порядок элементов сохраняется.
+    The last batch may be smaller than batch_size. Element order is preserved.
 
     Args:
-        items: Исходные элементы.
-        batch_size: Максимальный размер одной пачки, больше нуля.
+        items: Source elements.
+        batch_size: Maximum size of a single batch, greater than zero.
 
     Returns:
-        Список пачек; пустой список, если items пуст.
+        A list of batches; an empty list if items is empty.
 
     Raises:
-        ValueError: Если batch_size меньше 1.
+        ValueError: If batch_size is less than 1.
     """
 ```
 
@@ -140,7 +141,7 @@ def split_into_batches(items: Sequence[T], batch_size: int) -> list[list[T]]:
 
 ```python
 def is_weekend(day: date) -> bool:
-    """Проверяет, приходится ли дата на субботу или воскресенье."""
+    """Checks whether the date falls on a Saturday or Sunday."""
     return day.weekday() >= 5
 ```
 
@@ -151,21 +152,21 @@ def is_weekend(day: date) -> bool:
 
 ```python
 class RateLimiter:
-    """Ограничивает частоту вызовов внешнего API алгоритмом token bucket.
+    """Limits the call rate of an external API using the token bucket algorithm.
 
-    Один экземпляр разделяется между всеми запросами к одному API, поэтому
-    класс потокобезопасен.
+    A single instance is shared by all requests to one API, so the class
+    is thread-safe.
 
     Attributes:
-        max_calls_per_second: Разрешённое среднее количество вызовов в секунду.
+        max_calls_per_second: Allowed average number of calls per second.
     """
 
     def __init__(self, max_calls_per_second: float, *, burst_size: int = 1) -> None:
-        """Создаёт ограничитель с полным запасом токенов.
+        """Creates a limiter with a full token supply.
 
         Args:
-            max_calls_per_second: Средняя допустимая частота вызовов.
-            burst_size: Сколько вызовов можно сделать подряд без ожидания.
+            max_calls_per_second: Average allowed call rate.
+            burst_size: How many calls can be made in a row without waiting.
         """
 ```
 
@@ -174,12 +175,12 @@ class RateLimiter:
 ```python
 @dataclass(frozen=True, slots=True)
 class CurrencyRate:
-    """Официальный курс одной валюты к рублю на конкретную дату.
+    """Official exchange rate of one currency to the ruble on a given date.
 
     Attributes:
-        currency_code: Буквенный код ISO 4217, например ``"USD"``.
-        rate_rub: Стоимость одной единицы валюты в рублях.
-        on_date: Дата, на которую установлен курс.
+        currency_code: ISO 4217 alphabetic code, e.g. ``"USD"``.
+        rate_rub: Price of one currency unit in rubles.
+        on_date: Date the rate is effective for.
     """
 
     currency_code: str
@@ -191,13 +192,13 @@ class CurrencyRate:
 
 ```python
     def acquire(self, *, timeout_seconds: float | None = None) -> bool:
-        """Ждёт свободный токен и забирает его.
+        """Waits for a free token and takes it.
 
         Args:
-            timeout_seconds: Максимальное время ожидания; None — ждать бесконечно.
+            timeout_seconds: Maximum wait time; None means wait indefinitely.
 
         Returns:
-            True, если токен получен; False, если истёк таймаут.
+            True if a token was acquired; False if the timeout expired.
         """
 ```
 
@@ -205,34 +206,34 @@ class CurrencyRate:
 
 ```python
     def _refill_tokens(self) -> None:
-        """Пополняет запас токенов пропорционально прошедшему времени."""
+        """Refills the token supply in proportion to the elapsed time."""
 ```
 
 ### 2.4. Property
 
-Описываем как атрибут (существительным), без «Возвращает»:
+Описываем как атрибут (существительным), без «Returns»:
 
 ```python
     @property
     def remaining_days(self) -> int:
-        """Количество дней до окончания подписки; 0, если подписка истекла."""
+        """Number of days until the subscription ends; 0 if it has expired."""
 ```
 
 ### 2.5. Генератор
 
 ```python
 def read_csv_rows(path: Path, *, encoding: str = "utf-8") -> Iterator[dict[str, str]]:
-    """Построчно читает CSV-файл, не загружая его в память целиком.
+    """Reads a CSV file row by row without loading it into memory at once.
 
     Args:
-        path: Путь к CSV-файлу с заголовком в первой строке.
-        encoding: Кодировка файла.
+        path: Path to a CSV file with a header in the first row.
+        encoding: File encoding.
 
     Yields:
-        Словарь «название колонки → значение» для каждой строки данных.
+        A "column name -> value" dict for each data row.
 
     Raises:
-        FileNotFoundError: Если файла нет.
+        FileNotFoundError: If the file does not exist.
     """
 ```
 
@@ -240,20 +241,20 @@ def read_csv_rows(path: Path, *, encoding: str = "utf-8") -> Iterator[dict[str, 
 
 ```python
 async def fetch_user_profiles(user_ids: Iterable[int], client: httpx.AsyncClient) -> list[UserProfile]:
-    """Параллельно загружает профили пользователей из сервиса профилей.
+    """Loads user profiles from the profile service concurrently.
 
-    Запросы выполняются конкурентно, но не более MAX_CONCURRENT_REQUESTS
-    одновременно, чтобы не превысить лимит сервиса.
+    Requests run concurrently, but no more than MAX_CONCURRENT_REQUESTS at
+    a time, to stay within the service rate limit.
 
     Args:
-        user_ids: Идентификаторы пользователей.
-        client: Общий HTTP-клиент с настроенными таймаутами.
+        user_ids: User identifiers.
+        client: Shared HTTP client with configured timeouts.
 
     Returns:
-        Профили в том же порядке, что и user_ids.
+        Profiles in the same order as user_ids.
 
     Raises:
-        ProfileServiceError: Сервис ответил ошибкой хотя бы на один запрос.
+        ProfileServiceError: The service returned an error for at least one request.
     """
 ```
 
@@ -261,23 +262,23 @@ async def fetch_user_profiles(user_ids: Iterable[int], client: httpx.AsyncClient
 
 ```python
 class AppError(Exception):
-    """Базовое исключение приложения; ловите его, чтобы обработать любую нашу ошибку."""
+    """Base application exception; catch it to handle any of our errors."""
 
 
 class PaymentDeclinedError(AppError):
-    """Платёжная система отклонила платёж.
+    """The payment provider declined the payment.
 
     Attributes:
-        decline_code: Код отказа от платёжной системы, например ``"insufficient_funds"``.
+        decline_code: Decline code from the provider, e.g. ``"insufficient_funds"``.
     """
 
     def __init__(self, decline_code: str) -> None:
-        """Сохраняет код отказа и формирует понятное сообщение.
+        """Stores the decline code and builds a readable message.
 
         Args:
-            decline_code: Код отказа от платёжной системы.
+            decline_code: Decline code from the payment provider.
         """
-        super().__init__(f"Платёж отклонён: {decline_code}")
+        super().__init__(f"Payment declined: {decline_code}")
         self.decline_code = decline_code
 ```
 
@@ -285,13 +286,13 @@ class PaymentDeclinedError(AppError):
 
 ```python
 class NotificationSender(Protocol):
-    """Канал доставки уведомлений пользователю (email, Telegram, push)."""
+    """User notification delivery channel (email, Telegram, push)."""
 
     def send(self, user_id: int, message: str) -> None:
-        """Отправляет сообщение пользователю через этот канал.
+        """Sends a message to the user through this channel.
 
         Raises:
-            DeliveryError: Сообщение не удалось доставить.
+            DeliveryError: The message could not be delivered.
         """
         ...
 ```
@@ -300,12 +301,12 @@ class NotificationSender(Protocol):
 
 ```python
 class OrderStatus(StrEnum):
-    """Жизненный цикл заказа; переходы допускаются только вперёд по списку."""
+    """Order lifecycle; transitions are allowed only forward through the list."""
 
-    CREATED = "created"  # Создан, ожидает оплаты
-    PAID = "paid"  # Оплачен, передан на склад
-    SHIPPED = "shipped"  # Передан в доставку
-    DELIVERED = "delivered"  # Получен клиентом
+    CREATED = "created"  # Created, awaiting payment
+    PAID = "paid"  # Paid, handed over to the warehouse
+    SHIPPED = "shipped"  # Handed over to delivery
+    DELIVERED = "delivered"  # Received by the customer
 ```
 
 ### 2.10. Контекстный менеджер
@@ -313,13 +314,13 @@ class OrderStatus(StrEnum):
 ```python
 @contextmanager
 def temporary_directory(prefix: str) -> Iterator[Path]:
-    """Создаёт временную папку и удаляет её вместе с содержимым при выходе.
+    """Creates a temporary directory and removes it with its contents on exit.
 
     Args:
-        prefix: Префикс имени папки, помогает найти «хвосты» при отладке.
+        prefix: Directory name prefix, helps find leftovers when debugging.
 
     Yields:
-        Путь к созданной папке.
+        Path to the created directory.
     """
 ```
 
@@ -335,14 +336,14 @@ def temporary_directory(prefix: str) -> Iterator[Path]:
 
 ```python
 def import_price_list(path: Path, repository: ProductRepository) -> ImportReport:
-    """Импортирует прайс-лист поставщика и обновляет цены товаров."""
-    # 1. Читаем файл потоком — прайсы поставщиков бывают по 2+ млн строк
+    """Imports a supplier price list and updates product prices."""
+    # 1. Stream the file: supplier price lists can have 2+ million rows
     rows = read_csv_rows(path, encoding="cp1251")
 
-    # 2. Отбрасываем строки без артикула: поставщик вставляет туда заголовки разделов
+    # 2. Skip rows without a SKU: the supplier puts section headings there
     valid_rows = (row for row in rows if row["sku"].strip())
 
-    # 3. Обновляем пачками по 1000 — один UPDATE на строку слишком медленный
+    # 3. Update in batches of 1000: one UPDATE per row is too slow
     report = ImportReport()
     for batch in itertools.batched(valid_rows, PRICE_UPDATE_BATCH_SIZE):
         updated_count = repository.bulk_update_prices(parse_price_rows(batch))
@@ -355,16 +356,16 @@ def import_price_list(path: Path, repository: ProductRepository) -> ImportReport
 
 ```python
 def deduplicate_events(events: list[Event]) -> list[Event]:
-    """Удаляет повторные события, оставляя самое раннее по времени."""
-    # Сортируем по времени, чтобы первым встречался самый ранний дубль
+    """Removes duplicate events, keeping the earliest one."""
+    # Sort by time so the earliest duplicate comes first
     sorted_events = sorted(events, key=lambda event: event.created_at)
 
-    # set даёт O(1) на проверку «уже видели», вместо O(n) у списка
+    # A set gives O(1) for the "already seen" check instead of O(n) for a list
     seen_event_ids: set[str] = set()
     unique_events: list[Event] = []
 
     for event in sorted_events:
-        # Повторная доставка от брокера приходит с тем же event_id — пропускаем
+        # Broker redelivery arrives with the same event_id, so skip it
         if event.event_id in seen_event_ids:
             continue
         seen_event_ids.add(event.event_id)
@@ -376,31 +377,31 @@ def deduplicate_events(events: list[Event]) -> list[Event]:
 ### 3.2. Хорошие комментарии
 
 ```python
-# ЦБ публикует курсы на завтра после 15:00 МСК — до этого берём сегодняшние
+# The central bank publishes next-day rates after 15:00 MSK; before that use today's
 rates_date = today + timedelta(days=1) if now_moscow.hour >= 15 else today
 
-# Формат номера: +7 и 10 цифр, пробелы/скобки/дефисы уже удалены на шаге нормализации
+# Number format: +7 and 10 digits; spaces/brackets/hyphens are already stripped by normalization
 PHONE_PATTERN = re.compile(r"^\+7\d{10}$")
 
-# API отдаёт 500 на пустой список вместо 200 [] — обходим, не делая запрос вовсе
+# The API returns 500 for an empty list instead of 200 [] - work around it by not sending the request
 if not order_ids:
     return []
 
-# Decimal, а не float: деньги нельзя считать с двоичной погрешностью
+# Decimal, not float: money must not be computed with binary rounding error
 total_rub = sum((item.price_rub for item in items), start=Decimal("0"))
 
-# dict-индекс вместо поиска в списке: O(n + m) вместо O(n * m) на 50k товаров
+# dict index instead of a list search: O(n + m) instead of O(n * m) for 50k products
 product_by_sku = {product.sku: product for product in products}
 ```
 
 ### 3.3. Плохие комментарии
 
 ```python
-i += 1  # увеличиваем i                         ← тавтология
-users = get_users()  # получаем пользователей   ← пересказ кода
-# result = old_algorithm(data)                  ← мёртвый код, удалить
-x = y * 1.2  # умножаем на 1.2                  ← почему 1.2? нужна константа VAT_MULTIPLIER
-# TODO: поправить                               ← что, зачем, когда?
+i += 1  # increment i                            ← tautology
+users = get_users()  # get the users             ← restates the code
+# result = old_algorithm(data)                  ← dead code, delete it
+x = y * 1.2  # multiply by 1.2                   ← why 1.2? needs a VAT_MULTIPLIER constant
+# TODO: fix this                                ← what, why, when?
 ```
 
 ---
@@ -409,9 +410,10 @@ x = y * 1.2  # умножаем на 1.2                  ← почему 1.2? 
 
 | Ошибка | Как правильно |
 |---|---|
+| Комментарии, логи или докстринги не на английском | Весь текст в коде — на английском |
 | Нет шапки у файла | Шапка есть в каждом `.py`, включая `__init__.py` и тесты |
-| «Функция для получения пользователя» | «Возвращает пользователя по email.» |
-| Типы продублированы: `user_id (int): ...` | `user_id: Идентификатор пользователя.` |
+| "Function for getting a user" | `"""Returns the user by email."""` |
+| Типы продублированы: `user_id (int): ...` | `user_id: User identifier.` |
 | Докстринг описывает реализацию по шагам | Докстринг — контракт; шаги — inline-комментариями |
 | `Raises: Exception` | Конкретные классы исключений и условия |
 | Комментарий не обновлён после правки кода | Меняешь код — проверяешь комментарии рядом |

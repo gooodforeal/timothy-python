@@ -22,17 +22,17 @@
 ## 1. Секреты и конфигурация
 
 ```python
-# Плохо: секрет в коде попадает в git навсегда
+# Bad: a secret in code stays in git forever
 API_TOKEN = "sk_live_51H..."
 
-# Хорошо: единственное место чтения окружения — config.py
+# Good: the only place that reads the environment is config.py
 class Settings(BaseSettings):
-    """Настройки приложения из переменных окружения."""
+    """Application settings from environment variables."""
 
     model_config = SettingsConfigDict(env_file=".env")
 
     database_url: PostgresDsn
-    payment_api_token: SecretStr  # SecretStr не выводится в repr и логи
+    payment_api_token: SecretStr  # SecretStr is not shown in repr or logs
 
 
 settings = Settings()
@@ -48,13 +48,13 @@ settings = Settings()
 ## 2. SQL-инъекции
 
 ```python
-# Плохо: email='; DROP TABLE users; -- выполнится
+# Bad: email='; DROP TABLE users; -- would be executed
 cursor.execute(f"SELECT * FROM users WHERE email = '{email}'")
 
-# Хорошо: параметр передаётся отдельно, драйвер сам экранирует
+# Good: the parameter is passed separately, the driver escapes it
 cursor.execute("SELECT id, email FROM users WHERE email = %s", (email,))
 
-# Хорошо: ORM / query builder
+# Good: ORM / query builder
 session.scalars(select(User).where(User.email == email))
 ```
 
@@ -66,17 +66,17 @@ SORTABLE_COLUMNS = {"created_at": Order.created_at, "total": Order.total_rub}
 
 sort_column = SORTABLE_COLUMNS.get(requested_sort)
 if sort_column is None:
-    raise ValidationError(f"Сортировка по {requested_sort!r} не поддерживается")
+    raise ValidationError(f"Sorting by {requested_sort!r} is not supported")
 ```
 
 ## 3. Команды ОС
 
 ```python
-# Плохо: filename='a.png; rm -rf ~' выполнит вторую команду
+# Bad: filename='a.png; rm -rf ~' would run the second command
 os.system(f"convert {filename} thumbnail.png")
 subprocess.run(f"convert {filename} thumbnail.png", shell=True)
 
-# Хорошо: список аргументов, без оболочки; ошибки не теряются; есть таймаут
+# Good: argument list, no shell; errors are not lost; there is a timeout
 subprocess.run(
     ["convert", str(source_path), str(thumbnail_path)],
     check=True,
@@ -108,15 +108,15 @@ UPLOADS_DIR = Path("/srv/app/uploads").resolve()
 
 
 def resolve_upload_path(requested_name: str) -> Path:
-    """Возвращает путь к файлу внутри папки загрузок.
+    """Returns the path to a file inside the uploads directory.
 
     Raises:
-        ValidationError: Путь выходит за пределы папки загрузок.
+        ValidationError: The path escapes the uploads directory.
     """
-    # resolve() раскрывает «..» и симлинки — после этого проверка надёжна
+    # resolve() expands ".." and symlinks, so the check below is reliable
     candidate_path = (UPLOADS_DIR / requested_name).resolve()
     if not candidate_path.is_relative_to(UPLOADS_DIR):
-        raise ValidationError(f"Недопустимый путь: {requested_name!r}")
+        raise ValidationError(f"Invalid path: {requested_name!r}")
     return candidate_path
 ```
 
@@ -128,18 +128,18 @@ def resolve_upload_path(requested_name: str) -> Path:
 ## 6. Токены, пароли, сравнение секретов
 
 ```python
-# Плохо: random предсказуем
+# Bad: random is predictable
 reset_token = "".join(random.choices(string.ascii_letters, k=32))
 
-# Хорошо: криптостойкий генератор
+# Good: cryptographically secure generator
 reset_token = secrets.token_urlsafe(32)
 ```
 
 ```python
-# Плохо: обычное сравнение уязвимо к атаке по времени
+# Bad: a plain comparison is vulnerable to timing attacks
 if provided_signature == expected_signature: ...
 
-# Хорошо: сравнение за постоянное время
+# Good: constant-time comparison
 if hmac.compare_digest(provided_signature, expected_signature): ...
 ```
 
@@ -154,9 +154,9 @@ if hmac.compare_digest(provided_signature, expected_signature): ...
 
 ```python
 class CreateOrderRequest(BaseModel):
-    """Тело запроса на создание заказа."""
+    """Request body for creating an order."""
 
-    model_config = ConfigDict(extra="forbid")  # неизвестные поля — ошибка, а не тихий пропуск
+    model_config = ConfigDict(extra="forbid")  # unknown fields are an error, not silently ignored
 
     customer_email: EmailStr
     items: list[OrderItemRequest] = Field(min_length=1, max_length=100)
@@ -189,7 +189,7 @@ class CreateOrderRequest(BaseModel):
   не подделывали записи.
 
 ```python
-logger.info("Вход пользователя %s", user.email)  # не логируем пароль и токен сессии
+logger.info("User login: %s", user.email)  # do not log the password or session token
 ```
 
 ## 10. Зависимости

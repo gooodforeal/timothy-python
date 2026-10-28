@@ -25,34 +25,34 @@
 Аннотируются **все** параметры и возвращаемые значения, включая `-> None`.
 
 ```python
-MAX_RETRY_ATTEMPTS: Final = 3  # Final — константу нельзя переопределить
+MAX_RETRY_ATTEMPTS: Final = 3  # Final: the constant cannot be reassigned
 
 
 def send_reminder(user: User, *, delay_seconds: float = 0.0) -> None:
-    """Ставит напоминание пользователю в очередь отправки."""
+    """Puts a reminder for the user into the send queue."""
 
 
 class ReportBuilder:
-    """Собирает отчёт из секций в заданном порядке."""
+    """Builds a report from sections in the given order."""
 
     def __init__(self, title: str) -> None:
-        """Создаёт пустой отчёт с заголовком.
+        """Creates an empty report with a title.
 
         Args:
-            title: Заголовок отчёта.
+            title: Report title.
         """
-        self.title = title  # тип выводится из аннотации параметра
-        self._sections: list[Section] = []  # пустая коллекция — тип указываем явно
+        self.title = title  # the type is inferred from the parameter annotation
+        self._sections: list[Section] = []  # an empty collection: specify the type explicitly
 ```
 
 Локальные переменные аннотируем, только когда тип не выводится: пустые
 коллекции, начальное `None`, объявление переменной перед ветвлением.
 
 ```python
-# Тип выводится — аннотация не нужна
+# The type is inferred, no annotation needed
 total_rub = sum(order.amount_rub for order in orders)
 
-# Тип не выводится — аннотация нужна
+# The type is not inferred, annotation needed
 latest_order: Order | None = None
 orders_by_status: defaultdict[OrderStatus, list[Order]] = defaultdict(list)
 ```
@@ -76,7 +76,7 @@ from collections.abc import Iterable, Mapping
 
 
 def calculate_cart_total(items: Iterable[CartItem], price_by_sku: Mapping[str, Decimal]) -> Decimal:
-    """Считает сумму корзины по актуальным ценам."""
+    """Computes the cart total using current prices."""
     return sum((price_by_sku[item.sku] * item.quantity for item in items), start=Decimal("0"))
 ```
 
@@ -91,17 +91,17 @@ def calculate_cart_total(items: Iterable[CartItem], price_by_sku: Mapping[str, D
 
 ```python
 def get_delivery_address(user: User) -> Address | None:
-    """Возвращает адрес доставки по умолчанию или None, если адрес не задан."""
+    """Returns the default delivery address or None if no address is set."""
 
 
 def build_shipping_label(user: User) -> ShippingLabel:
-    """Формирует этикетку для отправки заказа пользователю.
+    """Builds a shipping label for the user's order.
 
     Raises:
-        MissingAddressError: У пользователя не указан адрес доставки.
+        MissingAddressError: The user has no delivery address.
     """
     address = get_delivery_address(user)
-    # После проверки тайпчекер знает, что address — Address, а не None
+    # After the check the type checker knows address is an Address, not None
     if address is None:
         raise MissingAddressError(user.id)
     return ShippingLabel(recipient=user.full_name, address=address)
@@ -113,18 +113,18 @@ def build_shipping_label(user: User) -> ShippingLabel:
 ## 4. Структурированные данные вместо `dict[str, Any]`
 
 ```python
-# Плохо: ни тайпчекер, ни читатель не знают, какие поля есть
+# Bad: neither the type checker nor the reader knows which fields exist
 def create_invoice(data: dict[str, Any]) -> dict[str, Any]: ...
 
-# Хорошо: внутренние данные — dataclass
+# Good: internal data is a dataclass
 @dataclass(frozen=True, slots=True)
 class InvoiceRequest:
-    """Запрос на выставление счёта.
+    """Invoice creation request.
 
     Attributes:
-        customer_id: Клиент, которому выставляется счёт.
-        amount_rub: Сумма к оплате.
-        due_date: Крайний срок оплаты.
+        customer_id: Customer being invoiced.
+        amount_rub: Amount to pay.
+        due_date: Payment deadline.
     """
 
     customer_id: CustomerId
@@ -141,7 +141,7 @@ class InvoiceRequest:
 
 ```python
 class RateResponse(TypedDict):
-    """Фрагмент ответа API курсов, который мы используем."""
+    """The part of the rates API response that we use."""
 
     CharCode: str
     Value: float
@@ -151,13 +151,13 @@ class RateResponse(TypedDict):
 ## 5. Фиксированные наборы значений: `Literal`, `Enum`
 
 ```python
-# Literal — для небольшого набора значений параметра, без поведения
+# Literal: for a small set of parameter values, without behavior
 def export_report(report: Report, export_format: Literal["csv", "json"]) -> bytes: ...
 
-# StrEnum — когда значения используются в нескольких местах, хранятся в БД
-# или у них есть поведение
+# StrEnum: when values are used in several places, stored in the DB,
+# or have behavior
 class OrderStatus(StrEnum):
-    """Статус заказа."""
+    """Order status."""
 
     CREATED = "created"
     PAID = "paid"
@@ -168,7 +168,7 @@ class OrderStatus(StrEnum):
 
 ```python
 def get_status_title(status: OrderStatus) -> str:
-    """Возвращает человекочитаемое название статуса."""
+    """Returns a human-readable status label."""
     match status:
         case OrderStatus.CREATED:
             return "Создан"
@@ -177,26 +177,26 @@ def get_status_title(status: OrderStatus) -> str:
         case OrderStatus.CANCELLED:
             return "Отменён"
         case _:
-            # Тайпчекер упадёт здесь, если в Enum добавят статус и забудут обработать
+            # The type checker fails here if a status is added to the Enum and left unhandled
             assert_never(status)
 ```
 
 ## 6. `NewType` и алиасы
 
 ```python
-# Алиас — просто короткое имя для сложного типа, взаимозаменяем с исходным
+# Alias: just a short name for a complex type, interchangeable with the original
 type PriceTable = dict[str, dict[date, Decimal]]
 
-# NewType — отдельный тип: UserId и OrderId нельзя перепутать
+# NewType: a distinct type, UserId and OrderId cannot be mixed up
 UserId = NewType("UserId", int)
 OrderId = NewType("OrderId", int)
 
 
 def cancel_order(order_id: OrderId, cancelled_by: UserId) -> None:
-    """Отменяет заказ от имени пользователя."""
+    """Cancels an order on behalf of the user."""
 
 
-cancel_order(user.id, order.id)  # тайпчекер поймает перепутанные аргументы
+cancel_order(user.id, order.id)  # the type checker catches swapped arguments
 ```
 
 ## 7. Обобщения (generics)
@@ -205,12 +205,12 @@ cancel_order(user.id, order.id)  # тайпчекер поймает переп�
 
 ```python
 def first_or_default[T](items: Iterable[T], default: T) -> T:
-    """Возвращает первый элемент или default, если элементов нет."""
+    """Returns the first element or default if there are none."""
     return next(iter(items), default)
 
 
 def group_by[K, V](items: Iterable[V], key: Callable[[V], K]) -> dict[K, list[V]]:
-    """Группирует элементы по ключу, сохраняя порядок внутри группы."""
+    """Groups elements by key, preserving order within a group."""
     groups: defaultdict[K, list[V]] = defaultdict(list)
     for item in items:
         groups[key(item)].append(item)
@@ -218,14 +218,14 @@ def group_by[K, V](items: Iterable[V], key: Callable[[V], K]) -> dict[K, list[V]
 
 
 class Page[T]:
-    """Одна страница результата постраничной выборки."""
+    """A single page of a paginated result."""
 
     def __init__(self, items: list[T], total_count: int) -> None:
-        """Создаёт страницу.
+        """Creates a page.
 
         Args:
-            items: Элементы текущей страницы.
-            total_count: Общее число элементов во всей выборке.
+            items: Items of the current page.
+            total_count: Total number of items in the whole result.
         """
         self.items = items
         self.total_count = total_count
@@ -241,15 +241,15 @@ class Page[T]:
 
 ```python
 class PaymentGateway(Protocol):
-    """Платёжный шлюз, через который списываются деньги."""
+    """Payment gateway through which money is charged."""
 
     def charge(self, amount_rub: Decimal, card_token: str) -> PaymentResult:
-        """Списывает сумму с карты."""
+        """Charges the card."""
         ...
 
 
 def checkout(order: Order, gateway: PaymentGateway) -> PaymentResult:
-    """Оплачивает заказ через переданный шлюз."""
+    """Pays for an order through the given gateway."""
     return gateway.charge(order.total_rub, order.card_token)
 ```
 
@@ -261,20 +261,20 @@ OrderFilter = Callable[[Order], bool]
 
 
 def select_orders(orders: Iterable[Order], is_selected: OrderFilter) -> list[Order]:
-    """Возвращает заказы, для которых фильтр вернул True."""
+    """Returns orders for which the predicate returned True."""
     return [order for order in orders if is_selected(order)]
 ```
 
 ## 9. `*args`, `**kwargs`, `overload`, `Self`
 
 ```python
-# Аннотация описывает тип ОДНОГО элемента
+# The annotation describes the type of ONE element
 def log_values(*values: float, **labels: str) -> None: ...
 
 
-# Строго типизированные kwargs — через TypedDict + Unpack
+# Strictly typed kwargs via TypedDict + Unpack
 class RequestOptions(TypedDict, total=False):
-    """Необязательные параметры HTTP-запроса."""
+    """Optional HTTP request parameters."""
 
     timeout_seconds: float
     retries: int
@@ -287,10 +287,10 @@ def fetch(url: str, **options: Unpack[RequestOptions]) -> bytes: ...
 
 ```python
 class QueryBuilder:
-    """Построитель запроса с цепочкой вызовов."""
+    """Query builder with call chaining."""
 
     def where(self, condition: str) -> Self:
-        """Добавляет условие и возвращает этот же построитель."""
+        """Adds a condition and returns the same builder."""
         self._conditions.append(condition)
         return self
 ```
@@ -311,15 +311,15 @@ class QueryBuilder:
 
 ```python
 def parse_port(raw_value: object) -> int:
-    """Преобразует значение из конфига в номер порта.
+    """Converts a config value to a port number.
 
     Raises:
-        ConfigError: Значение не является допустимым номером порта.
+        ConfigError: The value is not a valid port number.
     """
-    # isinstance сужает object до int — дальше тайпчекер доволен
+    # isinstance narrows object to int, so the type checker is satisfied
     if isinstance(raw_value, int) and 1 <= raw_value <= 65_535:
         return raw_value
-    raise ConfigError(f"Некорректный порт: {raw_value!r}")
+    raise ConfigError(f"Invalid port: {raw_value!r}")
 ```
 
 ## 11. `cast` и `type: ignore`

@@ -46,8 +46,8 @@
 ```
 src/shop_api/services/order_checkout.py
 tests/services/test_order_checkout.py
-tests/conftest.py                         # общие фикстуры
-tests/services/conftest.py                # фикстуры только для сервисов
+tests/conftest.py                         # shared fixtures
+tests/services/conftest.py                # fixtures for services only
 ```
 
 Имя теста: `test_<что>_<ожидаемый результат>_<при каком условии>`.
@@ -67,7 +67,7 @@ def test_checkout_raises_payment_declined_error_when_card_is_rejected() -> None:
 
 ```python
 def test_calculate_cart_total_applies_current_prices() -> None:
-    """Сумма корзины считается по актуальным ценам, а не по ценам в момент добавления."""
+    """The cart total uses current prices, not prices at the time of adding."""
     items = [CartItem(sku="ABC-000001", quantity=2), CartItem(sku="ABC-000002", quantity=1)]
     price_by_sku = {"ABC-000001": Decimal("100.00"), "ABC-000002": Decimal("50.50")}
 
@@ -96,7 +96,7 @@ def test_calculate_cart_total_applies_current_prices() -> None:
 def test_calculate_discount_rate_depends_on_total_spent(
     total_spent_rub: int, expected_rate: float
 ) -> None:
-    """Скидка VIP начисляется только строго выше порога."""
+    """The VIP discount applies only strictly above the threshold."""
     user = make_user(orders=[make_order(amount_rub=total_spent_rub)])
 
     assert calculate_discount_rate(user) == expected_rate
@@ -113,13 +113,13 @@ def test_calculate_discount_rate_depends_on_total_spent(
 
 ```python
 def make_user(*, is_active: bool = True, orders: list[Order] | None = None) -> User:
-    """Создаёт валидного пользователя для тестов; поля по умолчанию не важны для сценария."""
+    """Creates a valid user for tests; default fields do not matter for the scenario."""
     return User(id=UserId(1), email="user@example.com", is_active=is_active, orders=orders or [])
 
 
 @pytest.fixture
 def payment_gateway() -> FakePaymentGateway:
-    """Фейковый шлюз, который по умолчанию одобряет все платежи."""
+    """Fake gateway that approves all payments by default."""
     return FakePaymentGateway()
 ```
 
@@ -136,19 +136,19 @@ def payment_gateway() -> FakePaymentGateway:
 
 ```python
 class FakePaymentGateway:
-    """Шлюз в памяти: запоминает списания и умеет имитировать отказ."""
+    """In-memory gateway: records charges and can simulate a decline."""
 
     def __init__(self, *, decline_code: str | None = None) -> None:
-        """Создаёт шлюз.
+        """Creates the gateway.
 
         Args:
-            decline_code: Если задан, каждый платёж отклоняется с этим кодом.
+            decline_code: If set, every payment is declined with this code.
         """
         self.decline_code = decline_code
         self.charged_amounts: list[Decimal] = []
 
     def charge(self, amount_rub: Decimal, card_token: str) -> PaymentResult:
-        """Имитирует списание: отклоняет или запоминает сумму."""
+        """Simulates a charge: declines or records the amount."""
         if self.decline_code is not None:
             raise PaymentDeclinedError(self.decline_code)
         self.charged_amounts.append(amount_rub)
@@ -156,7 +156,7 @@ class FakePaymentGateway:
 
 
 def test_checkout_charges_order_total() -> None:
-    """При оформлении списывается итоговая сумма заказа."""
+    """Checkout charges the order total."""
     gateway = FakePaymentGateway()
     order = make_order(amount_rub=1500)
 
@@ -184,18 +184,18 @@ def test_checkout_charges_order_total() -> None:
 
 ```python
 def test_find_order_raises_not_found_for_unknown_id(order_repository: FakeOrderRepository) -> None:
-    """Запрос несуществующего заказа даёт NotFoundError с id в сообщении."""
-    with pytest.raises(NotFoundError, match="Заказ 404"):
+    """Requesting a missing order raises NotFoundError with the id in the message."""
+    with pytest.raises(NotFoundError, match="Order 404"):
         find_order(OrderId(404), order_repository)
 
 
 def test_import_logs_skipped_rows(caplog: pytest.LogCaptureFixture) -> None:
-    """Строки без артикула пропускаются с предупреждением в логе."""
+    """Rows without a SKU are skipped with a warning in the log."""
     caplog.set_level(logging.WARNING)
 
     import_price_rows([{"sku": "", "price": "10"}])
 
-    assert "пропущена строка без артикула" in caplog.text
+    assert "skipped row without SKU" in caplog.text
 ```
 
 `pytest.raises` оборачивает **только** вызов, который должен упасть, — не
@@ -206,7 +206,7 @@ def test_import_logs_skipped_rows(caplog: pytest.LogCaptureFixture) -> None:
 ```python
 @pytest.mark.anyio
 async def test_fetch_user_profiles_preserves_order(fake_profile_client: FakeProfileClient) -> None:
-    """Профили возвращаются в порядке переданных id, даже если ответы пришли вразнобой."""
+    """Profiles are returned in the order of the given ids even if responses arrive out of order."""
     profiles = await fetch_user_profiles([3, 1, 2], fake_profile_client)
 
     assert [profile.user_id for profile in profiles] == [3, 1, 2]
@@ -217,8 +217,8 @@ async def test_fetch_user_profiles_preserves_order(fake_profile_client: FakeProf
 ## 10. Покрытие и запуск
 
 ```bash
-pytest                                 # все тесты
-pytest tests/services -k discount      # подмножество по пути и имени
+pytest                                 # all tests
+pytest tests/services -k discount      # a subset by path and name
 pytest --cov=src --cov-report=term-missing
 ```
 

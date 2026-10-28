@@ -249,7 +249,7 @@ src/sales_pipeline/
 [project]
 name = "shop-api"
 version = "0.1.0"
-description = "HTTP API интернет-магазина"
+description = "HTTP API of an online store"
 requires-python = ">=3.12"
 dependencies = []
 
@@ -260,7 +260,7 @@ dev = ["pytest", "pytest-cov", "ruff", "mypy"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-# --- Линтер и форматтер ---
+# --- Linter and formatter ---
 [tool.ruff]
 line-length = 100
 target-version = "py312"
@@ -269,45 +269,45 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = [
     "E", "W",   # pycodestyle
-    "F",        # pyflakes: неиспользуемые импорты/переменные
-    "I",        # isort: порядок импортов
+    "F",        # pyflakes: unused imports/variables
+    "I",        # isort: import order
     "N",        # pep8-naming
-    "UP",       # современный синтаксис
-    "B",        # bugbear: типичные ошибки
+    "UP",       # modern syntax
+    "B",        # bugbear: common mistakes
     "C4",       # comprehensions
-    "SIM",      # упрощения
-    "PERF",     # антипаттерны производительности
+    "SIM",      # simplifications
+    "PERF",     # performance anti-patterns
     "RET",      # return
-    "PTH",      # pathlib вместо os.path
-    "ERA",      # закомментированный код
+    "PTH",      # pathlib instead of os.path
+    "ERA",      # commented-out code
     "PL",       # pylint
     "RUF",
-    "D",        # pydocstyle: докстринги везде
-    "ANN",      # аннотации типов везде
-    "S",        # bandit: проверки безопасности
+    "D",        # pydocstyle: docstrings everywhere
+    "ANN",      # type annotations everywhere
+    "S",        # bandit: security checks
 ]
 ignore = [
-    "RUF001", "RUF002", "RUF003",  # разрешаем кириллицу в строках, докстрингах и комментариях
+    "RUF001", "RUF002", "RUF003",  # allow Cyrillic in user-facing strings and test data
 ]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-# Тесты где угодно: в tests/ и рядом со скриптом (test_*.py, conftest.py).
-# assert и литералы в проверках — норма для тестов; докстринг у теста не обязателен,
-# если сценарий ясен из имени (см. testing.md), поэтому D103 тоже отключён.
+# Tests anywhere: in tests/ and next to the script (test_*.py, conftest.py).
+# assert and literals in checks are normal for tests; a test docstring is optional
+# when the scenario is clear from the name (see testing.md), so D103 is disabled too.
 "**/tests/**" = ["S101", "PLR2004", "D103"]
 "**/test_*.py" = ["S101", "PLR2004", "D103"]
 "**/conftest.py" = ["S101", "PLR2004", "D103"]
 
-# --- Типы ---
+# --- Types ---
 [tool.mypy]
 python_version = "3.12"
 strict = true
 warn_unreachable = true
 
-# --- Тесты ---
+# --- Tests ---
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
